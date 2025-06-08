@@ -1,8 +1,7 @@
 import os.path
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPushButton, QListWidget, \
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, \
     QListWidgetItem, QSizePolicy
-from PySide6.QtCore import QSize, Qt
 import json, socket
 
 from filename_widget import FileNameWidget
@@ -38,9 +37,9 @@ class ViewFileWidget(QWidget):
         self.update_files_button.clicked.connect(self.update_file_lists)
         self.l.addWidget(self.update_files_button)
 
-        self.print_files_button = QPushButton("print Files", self)
-        self.print_files_button.clicked.connect(self.print_files)
-        self.l.addWidget(self.print_files_button)
+        # self.print_files_button = QPushButton("print Files", self)
+        # self.print_files_button.clicked.connect(self.print_files)
+        # self.l.addWidget(self.print_files_button)
 
         self.personnel_list = QListWidget(self)
         self.nuclear_list = QListWidget(self)
@@ -49,9 +48,15 @@ class ViewFileWidget(QWidget):
         self.vf_layout.addWidget(self.personnel_list)
         self.vf_layout.addWidget(self.nuclear_list)
         self.vf_layout.addWidget(self.bio_list)
+
         self.personnel_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.nuclear_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.bio_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        stylesheet = "QListWidget::item { padding: 0px; }"
+        self.personnel_list.setStyleSheet(stylesheet)
+        self.nuclear_list.setStyleSheet(stylesheet)
+        self.bio_list.setStyleSheet(stylesheet)
 
         # self.personnel_scroll_area = QScrollArea()
         # self.personnel_scroll_area.setWidgetResizable(True)
@@ -128,7 +133,7 @@ class ViewFileWidget(QWidget):
             self.file_widgets["personnel_files"][filename] = file
             # self.personnel_layout.insertWidget(self.personnel_layout.count() - 1,file)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(100,20))
+            item.setSizeHint(file.sizeHint())
             self.personnel_list.addItem(item)
             self.personnel_list.setItemWidget(item, file)
 
@@ -140,7 +145,7 @@ class ViewFileWidget(QWidget):
             print(self.nuclear_list.count())
             # self.nuclear_layout.insertWidget(self.nuclear_layout.count() - 1, file)
             item = QListWidgetItem()
-            item.setSizeHint(QSize(100, 20))
+            item.setSizeHint(file.sizeHint())
             self.nuclear_list.addItem(item)
             self.nuclear_list.setItemWidget(item, file)
 

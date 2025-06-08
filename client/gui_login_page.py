@@ -1,7 +1,7 @@
 import socket
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStackedWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStackedWidget, QFormLayout
 import json
 
 from gui_viewfile_widget import ViewFileWidget
@@ -13,7 +13,7 @@ class LoginPage(QWidget):
         self.client = client
         self.parent = parent
         self.start_page = start_page
-        self.login_layout = QVBoxLayout()
+        self.login_layout = QFormLayout()
         self.setLayout(self.login_layout)
 
 
@@ -21,25 +21,26 @@ class LoginPage(QWidget):
         self.input_username.setPlaceholderText("Username")
         self.input_username.setMaxLength(50)
         self.input_username.setMaximumWidth(200)
-        self.layout().addWidget(self.input_username)
+        self.login_layout.addRow("Username:", self.input_username)
 
         self.input_password = QLineEdit(self)
         self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_password.setPlaceholderText("Password")
         self.input_password.setMaxLength(50)
         self.input_password.setMaximumWidth(200)
-        self.layout().addWidget(self.input_password)
+        self.login_layout.addRow("Password:", self.input_password)
 
         signin_button = QPushButton("Sign in")
         signin_button.setMaximumWidth(100)
         signin_button.clicked.connect(self.login_attempt)
-        self.layout().addWidget(signin_button)
+        self.login_layout.addWidget(signin_button)
 
-        self.login_layout.addStretch()
+        # self.login_layout.addStretch()
 
         self.error_label = QLabel(self)
         self.error_label.setText("")
         self.layout().addWidget(self.error_label)
+
 
     def login_attempt(self):
         username = self.input_username.text()

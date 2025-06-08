@@ -1,14 +1,21 @@
 import json
 import socket
 import threading
+
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QStackedWidget, QPushButton
 
+from gui_tabs_widget import TabsWidget
 from gui_viewfile_widget import ViewFileWidget
+
+class ResponseSignals(QObject):
+    show_files_signal = Signal()
 
 
 class ResponseHandler(threading.Thread):
     def __init__(self, client_socket, client_instance):
         super().__init__(daemon=True)
+        self.signals = ResponseSignals()
         self.client_socket = client_socket
         self.client = client_instance
 
@@ -60,6 +67,10 @@ class ResponseHandler(threading.Thread):
                     parent = self.main_window.stacked_widget.start_page_widget.start_stacked_widget
                     if isinstance(parent, QStackedWidget):
                         parent.setCurrentIndex(2)
+                    tab = self.main_window.stacked_widget
+                    if isinstance(tab, QStackedWidget):
+                        self.main_window.tabs_widget.panel()
+                        tab.setCurrentIndex(1)
                     panel_button = self.main_window.tabs_widget.panel_button
                     if isinstance(panel_button, QPushButton):
                         panel_button.show()
@@ -80,6 +91,10 @@ class ResponseHandler(threading.Thread):
                     parent = self.main_window.stacked_widget.start_page_widget.start_stacked_widget
                     if isinstance(parent, QStackedWidget):
                         parent.setCurrentIndex(2)
+                    tab = self.main_window.stacked_widget
+                    if isinstance(tab, QStackedWidget):
+                        self.main_window.tabs_widget.panel()
+                        tab.setCurrentIndex(1)
                     panel_button = self.main_window.tabs_widget.panel_button
                     if isinstance(panel_button, QPushButton):
                         panel_button.show()
@@ -100,7 +115,8 @@ class ResponseHandler(threading.Thread):
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.personnel_files = response['personnel_files']
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.nuclear_files = response['nuclear_files']
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.bio_files = response['bio_files']
-                self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_files()
+                self.signals.show_files_signal.emit()
+                # self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_files()
 
             case 'file_data':
                 file = self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.file_widgets[response['file_type']['file_name']]
@@ -114,4 +130,6 @@ class ResponseHandler(threading.Thread):
                         self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_error(f"error: {e}")
                 else:
                     self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_error(f"couldn't download file(server side)")
+            case 'chat_message':
+                pass
 

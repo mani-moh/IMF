@@ -7,13 +7,14 @@ from gui_tabs_widget import TabsWidget
 
 class MainWindow(QMainWindow):
     min_x = 600
-    min_y = 400
+    min_y = 600
 
 
     def __init__(self, client):
         super().__init__()
         #attributes
         self.client = client
+
 
         #sets minimum window size
         self.setMinimumSize(self.min_x, self.min_y)
@@ -43,6 +44,8 @@ class MainWindow(QMainWindow):
         self.tabs_widget = TabsWidget(self.stacked_widget, self.client, self.central_widget)
         self.central_widget.layout().addWidget(self.tabs_widget)
         self.central_widget.layout().addWidget(self.stacked_widget)
+
+        self.client.rsp_handler.signals.show_files_signal.connect(self.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_files)
 
     def closeEvent(self, event):
         msg = json.dumps({'type': 'exit_client'})

@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PySide6.QtCore import Qt
 import json, socket
 from cryptography.fernet import Fernet
 
@@ -8,14 +9,19 @@ class FileNameWidget(QWidget):
         self.client = client
         self.file_type = file_type
         self.filename = filename
+        self.setMinimumHeight(100)
         self.file_layout = QHBoxLayout()
         self.setLayout(self.file_layout)
+        self.file_layout.setContentsMargins(0, 0, 0, 0)
+        self.file_layout.setSpacing(0)
 
         self.label = QLabel(filename)
-        self.file_layout.addWidget(self.label)
 
         self.button = QPushButton('download')
-        self.file_layout.addWidget(self.button)
+
+        self.file_layout.addWidget(self.label, 0, Qt.AlignmentFlag.AlignTop)
+        self.file_layout.addWidget(self.button, 0, Qt.AlignmentFlag.AlignTop)
+
         self.button.clicked.connect(self.download_file)
 
     def download_file(self):

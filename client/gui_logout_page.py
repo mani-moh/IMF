@@ -13,6 +13,7 @@ class LogoutPage(QWidget):
 
         self.logout_button = QPushButton('Logout')
         self.logout_button.clicked.connect(self.logout)
+        self.logout_button.setMinimumHeight(100)
         self.logout_layout.addWidget(self.logout_button)
 
         self.logout_layout.addStretch()

@@ -29,3 +29,5 @@ class AgentPanel(QWidget):
     def on_tab_changed(self, index):
         if index == 0:
             self.viewfile_tab.update_file_lists()
+        elif index == 1:
+            self.chat_tab.update_chat_list()

@@ -4,12 +4,12 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushBu
     QListWidgetItem, QSizePolicy
 import json, socket
 
-from filename_widget import FileNameWidget
+from gui_sec_filename_widget import SecFileNameWidget
 
 
-class ViewFileWidget(QWidget):
+class MFileWidget(QWidget):
     def __init__(self, client, parent=None):
-        super(ViewFileWidget, self).__init__(parent)
+        super(MFileWidget, self).__init__(parent)
         self.client = client
         self.personnel_files = []
         self.nuclear_files = []
@@ -129,7 +129,7 @@ class ViewFileWidget(QWidget):
 
         self.file_widgets['personnel_files'] = {}
         for filename in self.personnel_files:
-            file = FileNameWidget(self.client, "personnel_files", filename, self.personnel_list)
+            file = SecFileNameWidget(self.client, "personnel_files", filename, self, self.personnel_list)
             self.file_widgets["personnel_files"][filename] = file
             # self.personnel_layout.insertWidget(self.personnel_layout.count() - 1,file)
             item = QListWidgetItem()
@@ -140,7 +140,7 @@ class ViewFileWidget(QWidget):
 
         self.file_widgets['nuclear_files'] = {}
         for filename in self.nuclear_files:
-            file = FileNameWidget(self.client, "nuclear_files", filename, self.nuclear_list)
+            file = SecFileNameWidget(self.client, "nuclear_files", filename, self, self.nuclear_list)
             self.file_widgets["nuclear_files"][filename] = file
             # self.nuclear_layout.insertWidget(self.nuclear_layout.count() - 1, file)
             item = QListWidgetItem()
@@ -152,7 +152,7 @@ class ViewFileWidget(QWidget):
 
         self.file_widgets['bio_files'] = {}
         for filename in self.bio_files:
-            file = FileNameWidget(self.client, "bio_files", filename, self.bio_list)
+            file = SecFileNameWidget(self.client, "bio_files", filename, self, self.bio_list)
             self.file_widgets["bio_files"][filename] = file
             # self.bio_layout.insertWidget(self.bio_layout.count() - 1, file)
             item = QListWidgetItem()
@@ -192,9 +192,10 @@ class ViewFileWidget(QWidget):
             'nuclear_files': [],
             'bio_files': []
         }
-        for filename in self.personnel_files:
-            if not os.path.exists(f"files/personnel_files/{filename}"):
-                continue
+        personnel_files = [f for f in os.listdir("files/personnel_files")]
+        nuclear_files = [f for f in os.listdir("files/nuclear_files")]
+        bio_files = [f for f in os.listdir("files/bio_files")]
+        for filename in personnel_files:
             with open(f"files/personnel_files/{filename}", 'rb') as f:
                 file_data = f.read()
             file_json = {
@@ -203,9 +204,7 @@ class ViewFileWidget(QWidget):
             }
             req_json['personnel_files'].append(file_json)
 
-        for filename in self.nuclear_files:
-            if not os.path.exists(f"files/nuclear_files/{filename}"):
-                continue
+        for filename in nuclear_files:
             with open(f"files/nuclear_files/{filename}", 'rb') as f:
                 file_data = f.read()
             file_json = {
@@ -214,9 +213,7 @@ class ViewFileWidget(QWidget):
             }
             req_json['nuclear_files'].append(file_json)
 
-        for filename in self.bio_files:
-            if not os.path.exists(f"files/bio_files/{filename}"):
-                continue
+        for filename in bio_files:
             with open(f"files/bio_files/{filename}", 'rb') as f:
                 file_data = f.read()
             file_json = {

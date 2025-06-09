@@ -12,8 +12,10 @@ class PanelWidget(QStackedWidget):
     def __init__(self,client, parent):
         super().__init__(parent)
         self.client = client
-        self.secretary_panel = SecretaryPanel(self)
-        self.addWidget(self.secretary_panel)
+
 
         self.agent_panel = AgentPanel(self.client, self)
         self.addWidget(self.agent_panel)
+
+        self.secretary_panel = SecretaryPanel(self.client, self.agent_panel, self)
+        self.addWidget(self.secretary_panel)

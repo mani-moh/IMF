@@ -68,6 +68,16 @@ class ClientHandler(threading.Thread):
                                 print("path/file not exist")
                         case 'update_files':
                             response_data = self.server_instance.handle_update_files(self, data)
+                        case 'send_chat_message':
+                            self.server_instance.handle_send_chat_message(self, data)
+                        case 'request_chat_history':
+                            response_data = self.server_instance.handle_request_chat_history(self, data)
+                        case 'create_chat':
+                            response_data = self.server_instance.handle_create_chat(self, data)
+                        case 'update_chat_list':
+                            response_data = self.server_instance.handle_update_chat_list(self, data)
+                        case 'delete_file':
+                            response_data = self.server_instance.handle_delete_file(self, data)
 
                     if response_data:
                         print(f"response sent: {response_data}")
@@ -83,6 +93,8 @@ class ClientHandler(threading.Thread):
             self.stop()
 
     def stop(self):
+        if self.user.username:
+            offline_announcement = {"type": "user_offline", "username": self.user.username}
         self.is_running = False
         print(f'client handler thread stopped: {self.address}')
         try:

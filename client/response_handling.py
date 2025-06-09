@@ -10,6 +10,10 @@ from gui_viewfile_widget import ViewFileWidget
 
 class ResponseSignals(QObject):
     show_files_signal = Signal()
+    chat_history_signal = Signal(str,int,list)
+    incoming_message_signal = Signal(dict)
+    create_chat_signal = Signal(dict)
+    update_chat_list_signal = Signal(dict)
 
 
 class ResponseHandler(threading.Thread):
@@ -51,6 +55,7 @@ class ResponseHandler(threading.Thread):
             print(f"error while handling response2: {e}")
 
     def handle_response(self, response):
+        chat_widget = self.main_window.stacked_widget.panel_widget.agent_panel.chat_tab
 
         match response["type"]:
             case 'server_closed':
@@ -113,8 +118,11 @@ class ResponseHandler(threading.Thread):
                     #todo check if same
 
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.personnel_files = response['personnel_files']
+                self.main_window.stacked_widget.panel_widget.secretary_panel.mfile_tab.personnel_files = response['personnel_files']
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.nuclear_files = response['nuclear_files']
+                self.main_window.stacked_widget.panel_widget.secretary_panel.mfile_tab.nuclear_files = response['nuclear_files']
                 self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.bio_files = response['bio_files']
+                self.main_window.stacked_widget.panel_widget.secretary_panel.mfile_tab.bio_files = response['bio_files']
                 self.signals.show_files_signal.emit()
                 # self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_files()
 
@@ -130,6 +138,20 @@ class ResponseHandler(threading.Thread):
                         self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_error(f"error: {e}")
                 else:
                     self.main_window.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_error(f"couldn't download file(server side)")
-            case 'chat_message':
-                pass
 
+
+
+
+
+
+            case 'incoming_chat_message':
+                self.signals.incoming_message_signal.emit(response)
+
+            case 'chat_history':
+                self.signals.chat_history_signal.emit(response["chat_type"], int(response["chat_id"]), response['messages'])
+
+            case 'create_chat':
+                self.signals.create_chat_signal.emit(response)
+
+            case 'update_chat_list':
+                self.signals.update_chat_list_signal.emit(response)

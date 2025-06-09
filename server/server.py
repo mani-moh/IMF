@@ -5,6 +5,7 @@ import threading
 from client_handling import ClientHandler
 import json, os
 import security
+import database.database as database
 
 
 def requires_permission(permission):
@@ -38,6 +39,7 @@ class Server:
         self.client_handlers = list()
         self.lock = threading.Lock()
         self.running = True
+        database.init_db()
         security.generate_master_key()
         try:
             with open("server_master.key", "rb") as f:
@@ -102,6 +104,12 @@ class Server:
             hashed_password = row[2]
             if bcrypt.checkpw(input_password.encode(), hashed_password):
                 handler.login_user(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
+                online_announcement = {"type": "user_online", "username": row[1]}
+
+                # Send list of online users to the new client
+                online_users = [h.user.username for h in self.client_handlers if h.user.username and h is not handler]
+                user_list_msg = {"type": "online_users_list", "users": online_users}
+                handler.client_socket.send(json.dumps(user_list_msg).encode())
                 response = {
                     "type": "login_result",
                     "login_result": "success",
@@ -233,11 +241,234 @@ class Server:
             except Exception as e:
                 print(f"error: {e}")
 
+    def broadcast(self, message, source_handler=None):
+        """Sends a message to all connected clients, optionally excluding the source."""
+        for handler in self.client_handlers:
+            if handler is not source_handler and handler.user.id:
+                try:
+                    handler.client_socket.sendall(json.dumps(message).encode())
+                except Exception as e:
+                    print(f"Error broadcasting message: {e}")
 
-        
+    def handle_send_chat_message(self, handler, data):
+        """Handles sending a private chat message to another user."""
+        recipient = data.get('recipient')
+        content = data.get('content')
+        sender = handler.user
+
+        if recipient['type'] == 'dm':
+            recipient_handler = None
+            for h in self.client_handlers:
+                if h.user.id == recipient['id']:
+                    recipient_handler = h
+                    break
+
+            if recipient_handler:
+                # Forward the message to the recipient
+                message = {
+                    "type": "incoming_chat_message",
+                    "chat_type": "dm",
+                    "sender": {"id": sender.id, "name": sender.username},
+                    "content": content
+                }
+                print(type(recipient_handler.client_socket))
+                try:
+                    recipient_handler.client_socket.sendall(json.dumps(message).encode())
+                except Exception as e:
+                    print(f"Error here message: {e}")
+            else:
+                # Optional: Handle offline users (e.g., store message in DB for later)
+                print(f"User {recipient['username']} is not online.")
+            cursor = handler.cursor
+            cursor.execute('''
+            INSERT INTO messages (sender_id, recipient_id, content) VALUES (?, ?, ?)
+            ''', (sender.id, recipient['id'], content))
+            handler.db_conn.commit()
+        elif recipient['type'] == 'group':
+            group = recipient
+            recipients = self.get_recipients_by_groupid(recipient['id'], handler)
+            for recipient in recipients:
+                self.forward_to_rec(handler, recipient, data)
+            cursor = handler.cursor
+            cursor.execute('''
+                        INSERT INTO messages (sender_id, group_id, content) VALUES (?, ?, ?)
+                        ''', (sender.id, group['id'], content))
+            handler.db_conn.commit()
+    def forward_to_rec(self, handler, recipient, data):
+        rec_data = data.get('recipient')
+        content = data.get('content')
+        sender = handler.user
+        recipient_handler = None
+        for h in self.client_handlers:
+            if h.user.id == recipient['user_id']:
+                recipient_handler = h
+                break
+
+        if recipient_handler:
+            # Forward the message to the recipient
+            message = {
+                "type": "incoming_chat_message",
+                "chat_type": "group",
+                "group_id": rec_data['id'],
+                "sender": {"id": sender.id, "name": sender.username},
+                "content": content
+            }
+            recipient_handler.client_socket.sendall(json.dumps(message).encode())
 
 
+    def get_recipients_by_groupid(self, groupid, handler):
+        recs = []
+        cursor = handler.cursor
+        cursor.execute('''
+        SELECT user_id WHERE groupid = ?
+        ''', (groupid,))
+        rows = cursor.fetchall()
+        for row in rows:
+            recs.append({'user_id': row[0], 'username': self.get_username_by_id(handler, row[0])})
+        return recs
 
+    def handle_request_chat_history(self, handler, data):
+        cursor = handler.cursor
+        chat_type = data['chat_type']
+        chat_id = int(data['chat_id'])
+        name_by_id = {}
+        messages = []
+        if chat_type == "dm":
+            cursor.execute('''
+            SELECT * FROM messages WHERE (sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?);
+            ''', (chat_id, handler.user.id, handler.user.id, chat_id))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                print(row)
+                messages.append({"sender_id": int(row[1]), "sender_name": self.get_username_by_id(handler, int(row[1]), name_by_id), "content": row[4], "date": row[5]})
+            response = {
+                'type': 'chat_history',
+                'chat_type': chat_type,
+                'chat_id': chat_id,
+                'messages': messages
+            }
+            return response
+        elif chat_type == "group":
+            cursor.execute('''
+                        SELECT * FROM messages WHERE groupid = ?;
+                        ''', (chat_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                messages.append({"sender_id": int(row[1]), "sender_name": self.get_username_by_id(handler, int(row[1]), name_by_id), "content": row[4], "date": row[5]})
+            response = {
+                'type': 'chat_history',
+                'chat_type': chat_type,
+                'chat_id': chat_id,
+                'messages': messages
+            }
+            return response
+
+
+    def get_username_by_id(self, handler, user_id, name_by_id = None):
+
+        if name_by_id:
+            if user_id in name_by_id:
+                return name_by_id[user_id]
+            else:
+                cursor = handler.cursor
+                cursor.execute('''
+                SELECT username FROM users WHERE id = ?;
+                ''', (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    username = cursor.fetchone()[0]
+                    name_by_id[user_id] = username
+                    return username
+                else:
+                    return None
+        else:
+            cursor = handler.cursor
+            cursor.execute('''
+                            SELECT username FROM users WHERE id = ?;
+                            ''', (user_id,))
+            row = cursor.fetchone()
+            if row:
+                username = row[0]
+                return username
+            else:
+                return None
+
+    def handle_create_chat(self, handler, data):
+        cursor = handler.cursor
+        username = data['username']
+        cursor.execute('''
+        SELECT id FROM users WHERE username = ?;
+        ''', (username,))
+        row = cursor.fetchone()
+        if row:
+            response = {
+                "type": "create_chat",
+                "status": "success",
+                "id": row[0],
+                "username": username
+            }
+        else:
+            response = {
+                "type": "create_chat",
+                "status": "fail",
+            }
+        return response
+
+    def handle_update_chat_list(self, handler, data):
+        cursor = handler.cursor
+        user_id = handler.user.id
+        response = {
+            "type": "update_chat_list",
+            "chats": []
+        }
+        dm_ids = set()
+        cursor.execute('''
+        SELECT * FROM messages WHERE sender_id = ? OR recipient_id = ?;
+        ''', (user_id ,user_id))
+        rows = cursor.fetchall()
+
+        for row in rows:
+            if row[3] is None:
+                if row[1] == user_id:
+                    dm_ids.add(row[2])
+                elif row[2] == user_id:
+                    dm_ids.add(row[1])
+        for dm_id in dm_ids:
+            response['chats'].append({"chat_type": "dm" , "id": dm_id, "name": self.get_username_by_id(handler, dm_id)})
+
+        cursor.execute('''
+        SELECT gm.group_id, gm.user_id, g.group_name
+        FROM groups g
+        JOIN group_members gm ON gm.group_id = g.group_id
+        WHERE user_id = ?;
+        ''', (user_id,))
+        rows = cursor.fetchall()
+        for row in rows:
+            response['chats'].append({"chat_type": "group", "id": row[0], "name": row[2]})
+        return response
+
+    def handle_delete_file(self, handler, data):
+        filepath = os.path.join("database", "files", data['file_type'], data['file_name'])
+
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            try:
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                    print(f"Deleted file: {filepath}")
+            except Exception as e:
+                print(f"Failed to delete {filepath}. Reason: {e}")
+            # try:
+            #     with open(filepath, "rb") as file:
+            #         file_data = file.read()  # Read in chunks
+            #     file_data_dec = self.server_instance.master_fernet.decrypt(file_data)
+            #     response_data = {'type': 'file_data', 'file_name': data['file_name'], 'file_type': data['file_type'],
+            #                      "status": "success", 'data': file_data_dec.hex()}
+            #     print("sent file")
+            # except Exception as e:
+            #     print(f"Exception on sendfile: {str(e)}")
+        else:
+            print("path/file not exist")
 
 
 

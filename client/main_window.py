@@ -46,6 +46,11 @@ class MainWindow(QMainWindow):
         self.central_widget.layout().addWidget(self.stacked_widget)
 
         self.client.rsp_handler.signals.show_files_signal.connect(self.stacked_widget.panel_widget.agent_panel.viewfile_tab.show_files)
+        self.client.rsp_handler.signals.show_files_signal.connect(self.stacked_widget.panel_widget.secretary_panel.mfile_tab.show_files)
+        self.client.rsp_handler.signals.chat_history_signal.connect(self.stacked_widget.panel_widget.agent_panel.chat_tab.show_chat_history)
+        self.client.rsp_handler.signals.incoming_message_signal.connect(self.stacked_widget.panel_widget.agent_panel.chat_tab.incoming_message)
+        self.client.rsp_handler.signals.create_chat_signal.connect(self.stacked_widget.panel_widget.agent_panel.chat_tab.got_create_chat)
+        self.client.rsp_handler.signals.update_chat_list_signal.connect(self.stacked_widget.panel_widget.agent_panel.chat_tab.got_update_chat_list)
 
     def closeEvent(self, event):
         msg = json.dumps({'type': 'exit_client'})
